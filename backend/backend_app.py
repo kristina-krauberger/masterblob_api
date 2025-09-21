@@ -1,3 +1,5 @@
+from os import remove
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -26,10 +28,8 @@ def get_posts():
     """
     Handles blog post operations & supports two HTTP methods:
         - GET: Return a list of all existing posts.
-        - POST: Add a new post if 'title' and 'content' are provided.
-                A unique ID will be generated automatically.
-    :return: JSON response containing posts or an error message
-    with appropriate HTTP status codes (200, 201, or 400).
+        - POST: Add a new post if 'title' and 'content' are provided. A unique ID will be generated automatically.
+    :return: JSON response containing posts or an error message with appropriate HTTP status codes (200, 201, or 400).
     """
     if request.method == 'POST':
         new_post = request.get_json()
@@ -43,26 +43,54 @@ def get_posts():
         return jsonify(new_post), 201
 
     else:
-        return jsonify(POSTS)
+        return jsonify(POSTS), 200
+
+
+def find_post_by_id(post_id):
+    """
+    Find a blog post by its unique ID.
+    :param post_id: int, the ID of the post to search for
+    :return: dict if the post exists, None otherwise
+    """
+    for post in POSTS:
+        if post['id'] == post_id:
+            return post
+    return None
+
+
+@app.route('/api/posts/<int:post_id>', methods=['DELETE'])
+def delete_post(post_id):
+    """
+    Delete a blog post by its unique ID.
+    :param post_id: int, the ID of the post to delete
+    :return: JSON response with a success message and HTTP 200 if deleted,
+             or JSON error message with HTTP 404 if the post does not exist
+    """
+    post = find_post_by_id(post_id)
+
+    if post is None:
+        return jsonify({"error": "Post not found"}), 404
+
+    else:
+        POSTS.remove(post)
+        return jsonify({"message": f"Post with id {post_id} has been deleted successfully."}), 200
 
 
 @app.errorhandler(404)
-def not_found_error(error):
+def not_found_error(_):
     """
     Handle 404 Not Found errors. Triggered when a requested resource or route does not exist.
-    :param error: The raised 404 error instance
     :return: JSON response with error message and HTTP status 404
     """
     return jsonify({"error": "Not Found"}), 404
 
 
 @app.errorhandler(405)
-def method_not_allowed_error(error):
+def method_not_allowed_error(_):
     """
-   Handle 405 Method Not Allowed errors. Triggered when a valid route is accessed with an unsupported HTTP method.
-   :param error: The raised 405 error instance
-   :return: JSON response with error message and HTTP status 405
-   """
+    Handle 405 Method Not Allowed errors. Triggered when a valid route is accessed with an unsupported HTTP method.
+    :return: JSON response with error message and HTTP status 405
+    """
     return jsonify({"error": "Method Not Allowed"}), 405
 
 
