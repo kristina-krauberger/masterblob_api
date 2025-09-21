@@ -23,13 +23,33 @@ def validate_post_data(new_post):
     return True
 
 
+def find_post_by_id(post_id):
+    """
+    Find a blog post by its unique ID.
+    :param post_id: int, the ID of the post to search for
+    :return: dict if the post exists, None otherwise
+    """
+    for post in POSTS:
+        if post['id'] == post_id:
+            return post
+    return None
+
+
 @app.route('/api/posts', methods=['GET', 'POST'])
 def get_posts():
     """
-    Handles blog post operations & supports two HTTP methods:
-        - GET: Return a list of all existing posts.
-        - POST: Add a new post if 'title' and 'content' are provided. A unique ID will be generated automatically.
-    :return: JSON response containing posts or an error message with appropriate HTTP status codes (200, 201, or 400).
+    Handle blog post operations & support two HTTP methods:
+        - GET:
+            Return a list of all existing posts.
+            Supports optional query parameters for sorting:
+                - sort: "title" or "content" (case-insensitive).
+                - direction: "asc" (default) or "desc".
+            If parameters are invalid, returns HTTP 400 with an error message.
+        - POST:
+            Add a new post if 'title' and 'content' are provided.
+            A unique ID will be generated automatically.
+    :return: JSON response with posts or error message and appropriate
+             HTTP status codes (200, 201, or 400).
     """
     if request.method == 'POST':
         new_post = request.get_json()
@@ -43,19 +63,24 @@ def get_posts():
         return jsonify(new_post), 201
 
     else:
+
+        sort = request.args.get("sort")  # .get("sort") schnappen wir was im key "sort" drin ist title/content
+        direction = request.args.get("direction")
+
+        reverse = False
+        if direction == "desc":
+            reverse = True
+        elif direction not in (None, "asc"):
+            return jsonify({"error": "Invalid direction parameter"}), 400
+
+        if sort == "title":
+            sorted_posts = sorted(POSTS, key=lambda post: post['title'].lower(), reverse=reverse)
+            return jsonify(sorted_posts), 200
+        if sort == "content":
+            sorted_posts = sorted(POSTS, key=lambda post: post['content'].lower(), reverse=reverse)
+            return jsonify(sorted_posts), 200
+
         return jsonify(POSTS), 200
-
-
-def find_post_by_id(post_id):
-    """
-    Find a blog post by its unique ID.
-    :param post_id: int, the ID of the post to search for
-    :return: dict if the post exists, None otherwise
-    """
-    for post in POSTS:
-        if post['id'] == post_id:
-            return post
-    return None
 
 
 @app.route('/api/posts/<int:post_id>', methods=['PUT'])
@@ -94,6 +119,35 @@ def delete_post(post_id):
     else:
         POSTS.remove(post)
         return jsonify({'message': f'Post with id {post_id} has been deleted successfully.'}), 200
+
+
+@app.route('/api/posts/search', methods=['GET'])
+def search_posts():
+    """
+    Search for blog posts by title and/or content.
+
+    Supports two optional query parameters:
+        - title: str, filters posts whose titles contain the given string (case-insensitive).
+        - content: str, filters posts whose content contains the given string (case-insensitive).
+
+    If both parameters are provided, results must match both filters.
+    If no parameters are provided, all posts are returned.
+
+    :return: JSON list of posts matching the search criteria with HTTP 200 status.
+    """
+    filtered_posts = POSTS
+
+    title = request.args.get('title')
+    content = request.args.get('content')
+
+    if title:
+        filtered_posts = [post for post in filtered_posts if title.lower() in post.get('title', '').lower()]
+        #return jsonify(filtered_posts), 200  →return weglassen: ich würde die schleife sonst abbrechen
+    if content:
+        filtered_posts = [post for post in filtered_posts if content.lower() in post.get('content', '').lower()]
+
+    return jsonify(filtered_posts), 200
+
 
 
 @app.errorhandler(404)
