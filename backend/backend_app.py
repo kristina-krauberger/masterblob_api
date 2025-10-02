@@ -54,7 +54,7 @@ def get_posts():
         if not validate_post_data(new_post):
             return jsonify({'error': 'Invalid post data'}), 400
 
-        new_id = max(post['id'] for post in POSTS) + 1
+        new_id = max([post['id'] for post in POSTS], default=0) + 1
         new_post['id'] = new_id
 
         POSTS.append(new_post)
@@ -62,7 +62,7 @@ def get_posts():
 
     else:
 
-        sort = request.args.get("sort")  # .get("sort") schnappen wir was im key "sort" drin ist title/content
+        sort = request.args.get("sort")
         direction = request.args.get("direction")
 
         reverse = False
